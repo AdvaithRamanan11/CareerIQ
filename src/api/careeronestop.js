@@ -12,32 +12,31 @@ async function get(endpoint, params = {}) {
 
 export async function fetchWages(keyword, location = 'tx') {
   const data = await get('wages', { keyword, location })
-  const detail = data.OccupationDetail?.[0]
+  const detail = data.OccupationDetail          // object, not array
   if (!detail) return null
 
   const annual = (list) =>
-    list?.filter(w => w.RateType === 'Annual') ?? []
+    list?.find(w => w.RateType === 'Annual') ?? null
 
-  const stateWages  = annual(detail.Wages?.StateWagesList)
-  const nationalWages = annual(detail.Wages?.NationalWagesList)
-  const nat = nationalWages[0]
+  const stateAnnual    = annual(detail.Wages?.StateWagesList)
+  const nationalAnnual = annual(detail.Wages?.NationalWagesList)
 
   return {
     title:    detail.OccupationTitle,
-    onetCode: detail.OnetCode,
-    national: nat ? {
-      p10:    Number(nat.Pct10),
-      p25:    Number(nat.Pct25),
-      median: Number(nat.Median),
-      p75:    Number(nat.Pct75),
-      p90:    Number(nat.Pct90),
+    onetCode: detail.OccupationCode,
+    national: nationalAnnual ? {
+      p10:    Number(nationalAnnual.Pct10),
+      p25:    Number(nationalAnnual.Pct25),
+      median: Number(nationalAnnual.Median),
+      p75:    Number(nationalAnnual.Pct75),
+      p90:    Number(nationalAnnual.Pct90),
     } : null,
-    state: stateWages[0] ? {
-      p10:    Number(stateWages[0].Pct10),
-      p25:    Number(stateWages[0].Pct25),
-      median: Number(stateWages[0].Median),
-      p75:    Number(stateWages[0].Pct75),
-      p90:    Number(stateWages[0].Pct90),
+    state: stateAnnual ? {
+      p10:    Number(stateAnnual.Pct10),
+      p25:    Number(stateAnnual.Pct25),
+      median: Number(stateAnnual.Median),
+      p75:    Number(stateAnnual.Pct75),
+      p90:    Number(stateAnnual.Pct90),
     } : null,
   }
 }
@@ -53,8 +52,11 @@ export async function searchOccupations(keyword, location = 'tx') {
 
 export async function fetchWageByLocation(keyword) {
   const data = await get('wagebylocation', { keyword })
-  return (data.OccupationDetail ?? []).map(d => ({
-    location: d.AreaName,
-    median:   Number(d.Wages?.StateWagesList?.find(w => w.RateType === 'Annual')?.Median ?? 0),
-  }))
+  // wageloc returns OccupationsList[].LocationWageDetails[]
+  return (data.OccupationsList ?? []).flatMap(occ =>
+    (occ.LocationWageDetails ?? []).map(loc => ({
+      location: loc.LocationName,
+      median:   Number(loc.WageInfo?.find(w => w.RateType === 'Annual')?.Median ?? 0),
+    }))
+  )
 }

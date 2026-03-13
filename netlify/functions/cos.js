@@ -1,75 +1,51 @@
-const BASE    = 'https://api.careeronestop.org/v1'
-const USER_ID = process.env.COS_USER_ID
-const TOKEN   = process.env.COS_TOKEN
+export default async (req) => {
+  const url      = new URL(req.url)
+  const endpoint = url.searchParams.get('endpoint')
+  const keyword  = url.searchParams.get('keyword') ?? ''
+  const location = url.searchParams.get('location') ?? 'tx'
 
-const CORS = {
-  'Access-Control-Allow-Origin':  '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'GET, OPTIONS',
-}
+  const userId = process.env.COS_USER_ID
+  const token  = process.env.COS_TOKEN
 
-export async function handler(event) {
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: CORS, body: '' }
+  if (!userId || !token) {
+    return new Response(JSON.stringify({ error: 'Missing API credentials' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
-  if (!USER_ID || !TOKEN) {
-    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'API credentials not configured' }) }
+  const kw  = encodeURIComponent(keyword)
+  const loc = encodeURIComponent(location)
+
+  const endpointMap = {
+    wages:          `https://api.careeronestop.org/v1/comparesalaries/${userId}/wage?keyword=${kw}&location=${loc}&enableMetaData=false`,
+    occupations:    `https://api.careeronestop.org/v1/occupation/${userId}/${kw}/${loc}/0/10`,
+    wagebylocation: `https://api.careeronestop.org/v1/comparesalaries/${userId}/wageloc?keyword=${kw}&location=${loc}&sortColumns=0&sortOrder=0&sortBy=Annual&enableMetaData=false`,
   }
 
-  const { endpoint, ...params } = event.queryStringParameters ?? {}
-
-  if (!endpoint) {
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Missing endpoint param' }) }
-  }
-
-  const ALLOWED = ['wages', 'occupations', 'wagebylocation']
-  if (!ALLOWED.includes(endpoint)) {
-    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: `Unknown endpoint: ${endpoint}` }) }
-  }
-
-  let cosUrl
-
-  if (endpoint === 'wages') {
-    const { keyword, location = 'tx' } = params
-    if (!keyword) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Missing keyword' }) }
-    const qs = new URLSearchParams({ keyword, location, enableMetaData: false })
-    cosUrl = `${BASE}/comparesalaries/${USER_ID}/wage?${qs}`
-  }
-
-  if (endpoint === 'occupations') {
-    const { keyword, location = 'tx' } = params
-    if (!keyword) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Missing keyword' }) }
-    cosUrl = `${BASE}/occupation/${USER_ID}/${encodeURIComponent(keyword)}/${location}`
-  }
-
-  if (endpoint === 'wagebylocation') {
-    const { keyword } = params
-    if (!keyword) return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Missing keyword' }) }
-    const qs = new URLSearchParams({ keyword, enableMetaData: false })
-    cosUrl = `${BASE}/comparesalaries/${USER_ID}/wageloc?${qs}`
+  const apiUrl = endpointMap[endpoint]
+  if (!apiUrl) {
+    return new Response(JSON.stringify({ error: `Unknown endpoint: ${endpoint}` }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 
   try {
-    const res  = await fetch(cosUrl, {
-      headers: {
-        'Authorization': `Bearer ${TOKEN}`,
-        'Content-Type':  'application/json',
-      },
+    const res  = await fetch(apiUrl, {
+      headers: { Authorization: `Bearer ${token}` },
     })
-
-    const body = await res.text()
-
-    return {
-      statusCode: res.status,
-      headers: { ...CORS, 'Content-Type': 'application/json' },
-      body,
-    }
+    const data = await res.json()
+    return new Response(JSON.stringify(data), {
+      status: res.status,
+      headers: { 'Content-Type': 'application/json' },
+    })
   } catch (err) {
-    return {
-      statusCode: 502,
-      headers: CORS,
-      body: JSON.stringify({ error: 'Upstream fetch failed', detail: err.message }),
-    }
+    return new Response(JSON.stringify({ error: err.message, url: apiUrl }), {
+      status: 502,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
 }
+
+export const config = { path: '/api/cos' }

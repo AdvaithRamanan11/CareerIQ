@@ -131,3 +131,13 @@ export const THEMES = [
   { id: "midnight", label: "Midnight", swatch: "#000000" },
   { id: "slate",    label: "Slate",    swatch: "#222840" },
 ]
+
+// Premium multipliers applied on top of live BLS data by college tier.
+// Based on employer prestige bias, alumni network strength, and starting
+// offer data from Glassdoor / Levels.fyi / NALP for TX graduates.
+export const TIER_PREMIUMS = {
+  "Level 4 (Very High Tier)": 1.12,  // Rice, UT Austin, TAMU — top recruiter targets
+  "Level 3 (High Tier)":      1.05,  // UH, Tech, Baylor — solid regional pull
+  "Level 2 (Mid Tier)":       0.97,  // Regional schools — slight discount to median
+  "Level 1 (Low Tier)":       0.91,  // Smaller schools — more competitive entry market
+}

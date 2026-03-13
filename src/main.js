@@ -4,7 +4,7 @@ import { populateColleges, populateMajors, populateJobs, buildStateGrid } from '
 import { predictSalary, fmt, getTier } from './calc/salary.js'
 import { applyMultipliers }   from './calc/multipliers.js'
 import { stdMonthlyPayment, buildPayoffTimeline, roiVerdict } from './calc/roi.js'
-import { ROI_LOAN_DEFAULTS, ROI_EXPENSE_DEFAULTS, FEDERAL_LOAN_RATE, STATE_MULTIPLIERS, JOB_INCOME } from './data/constants.js'
+import { ROI_LOAN_DEFAULTS, ROI_EXPENSE_DEFAULTS, FEDERAL_LOAN_RATE, STATE_MULTIPLIERS, JOB_INCOME, TIER_PREMIUMS } from './data/constants.js'
 import { fetchWages, searchOccupations } from './api/careeronestop.js'
 import { cached } from './api/cache.js'
 
@@ -18,11 +18,56 @@ const $ = id => document.getElementById(id)
 const show = (el, visible = true) => { if (el) el.hidden = !visible }
 const val  = id => $(id)?.value ?? ''
 
+// Maps app job titles → exact BLS occupation titles accepted by CareerOneStop
+const JOB_TO_BLS = {
+  // Engineering
+  "Software Engineer":    "Software Developers",
+  "Mechanical Engineer":  "Mechanical Engineers",
+  "Electrical Engineer":  "Electrical Engineers",
+  "Civil Engineer":       "Civil Engineers",
+  "Chemical Engineer":    "Chemical Engineers",
+  // Computer Science
+  "Data Scientist":       "Data Scientists",
+  "Systems Architect":    "Software Developers",
+  "Database Administrator":"Database Administrators",
+  "Web Developer":        "Web Developers",
+  // Business
+  "Investment Banker":    "Financial Managers",
+  "Management Consultant":"Management Analysts",
+  "Financial Analyst":    "Financial Analysts",
+  "Marketing Manager":    "Marketing Managers",
+  "Business Analyst":     "Management Analysts",
+  // Healthcare
+  "Physician":            "Physicians, Pathologists",
+  "Surgeon":              "Surgeons, All Other",
+  "Nurse Practitioner":   "Nurse Practitioners",
+  "Medical Researcher":   "Medical Scientists, Except Epidemiologists",
+  "Pharmacist":           "Pharmacists",
+  // Law
+  "Corporate Lawyer":     "Lawyers",
+  "Public Defender":      "Lawyers",
+  "Family Lawyer":        "Lawyers",
+  "Patent Lawyer":        "Lawyers",
+  "Litigation Lawyer":    "Lawyers",
+}
+
 function setLoading(elId, loading) {
   const el = $(elId)
   if (!el) return
   el.style.opacity = loading ? '0.4' : '1'
   el.style.pointerEvents = loading ? 'none' : ''
+}
+
+function setDataBadge(live) {
+  const badge = document.querySelector('.data-badge')
+  if (!badge) return
+  if (live) {
+    badge.innerHTML = `<i class="ph ph-circle-wavy-check"></i> LIVE BLS 2024`
+    badge.style.color = 'var(--positive)'
+  } else {
+    badge.innerHTML = `<i class="ph ph-clock-clockwise"></i> STATIC ESTIMATE`
+    badge.style.color = 'var(--text-muted)'
+  }
 }
 
 function wireJobDropdown(majorId, jobId, ...callbacks) {
@@ -34,12 +79,19 @@ function wireJobDropdown(majorId, jobId, ...callbacks) {
 
 async function getWagesForJob(job, location = 'tx') {
   if (!job) return null
+  const blsTitle = JOB_TO_BLS[job]
+  if (!blsTitle) return null
   try {
-    return await cached(`wages:${job}:${location}`, () => fetchWages(job, location))
+    return await cached(`wages:${blsTitle}:${location}`, () => fetchWages(blsTitle, location))
   } catch (err) {
     console.warn('CareerOneStop unavailable, using static fallback:', err.message)
     return null
   }
+}
+
+function tierPremium(college) {
+  const tier = getTier(college)
+  return TIER_PREMIUMS[tier] ?? 1.0
 }
 
 function salaryFromWages(wages, exp) {
@@ -73,13 +125,15 @@ async function runPredict() {
   let annual
 
   if (live) {
-    annual = Math.round(live * areaMulti)
+    annual = Math.round(live * areaMulti * tierPremium(college))
     $('predictContext').textContent = `${college} · ${major} · ${job} · ${area} · ${exp.replace('_', ' ')} — live BLS data`
+    setDataBadge(true)
   } else {
     const result = predictSalary(college, major, job, area, exp)
     if (!result) { setLoading('predictResult', false); return }
     annual = result.annual
     $('predictContext').textContent = `${college} · ${major} · ${job} · ${area} · ${exp.replace('_', ' ')} — estimated`
+    setDataBadge(false)
   }
 
   $('predictAmount').textContent  = fmt(annual)
@@ -108,7 +162,7 @@ async function runCompare() {
   const areaMulti = { urban: 1.12, suburban: 1.0, rural: 0.88 }[area] ?? 1
 
   const getSalary = (college) => {
-    if (live) return Math.round(live * areaMulti)
+    if (live) return Math.round(live * areaMulti * tierPremium(college))
     const r = predictSalary(college, major, job, area, exp)
     return r?.annual ?? 0
   }
@@ -195,7 +249,7 @@ async function runROI() {
 
   let annual
   if (live) {
-    annual = Math.round(live * areaMulti)
+    annual = Math.round(live * areaMulti * tierPremium(college))
   } else {
     const result = predictSalary(college, major, job, area, exp)
     if (!result) return
@@ -276,7 +330,7 @@ async function runWhatIf() {
   function getSalary(s) {
     if (wages) {
       const live = salaryFromWages(wages, s.exp)
-      if (live) return Math.round(live * (areaMultipliers[s.area] ?? 1))
+      if (live) return Math.round(live * (areaMultipliers[s.area] ?? 1) * tierPremium(college))
     }
     const tier = getTier(college)
     const base = JOB_INCOME[tier]?.[major]?.[job]
@@ -351,9 +405,6 @@ window.calcNational = async function () {
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
-wireJobDropdown('e-major', 'e-job', buildExport)
-;['e-college', 'e-job', 'e-area', 'e-exp'].forEach(id => $(id)?.addEventListener('change', buildExport))
-
 window.buildExport = async function () {
   const college = val('e-college')
   const major   = val('e-major')
@@ -368,7 +419,7 @@ window.buildExport = async function () {
 
   let annual, source
   if (live) {
-    annual = Math.round(live * areaMulti)
+    annual = Math.round(live * areaMulti * tierPremium(college))
     source = 'BLS / CareerOneStop live data'
   } else {
     const result = predictSalary(college, major, job, area, exp)
@@ -397,3 +448,6 @@ window.buildExport = async function () {
     `<div class="export-row"><span class="export-key">${r.k}</span><span class="export-val">${r.v}</span></div>`
   ).join('')
 }
+
+wireJobDropdown('e-major', 'e-job', buildExport)
+;['e-college', 'e-job', 'e-area', 'e-exp'].forEach(id => $(id)?.addEventListener('change', buildExport))
