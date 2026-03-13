@@ -5,13 +5,9 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    rollupOptions: {
-      input: 'public/index.html',
-    },
   },
   server: {
     port: 5173,
-    open: '/public/index.html',
     proxy: {
       '/api': {
         target: 'http://localhost:8888',
