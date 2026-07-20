@@ -3,7 +3,7 @@
     "source": "BLS Employment Cost Index (ECI), Wages and Salaries, Civilian Workers",
     "seriesId": "CIU2010000000000A",
     "apiEndpoint": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
-    "computedAt": "2026-07-20T18:08:49.079Z"
+    "computedAt": "2026-07-20T18:13:12.077Z"
   },
   "annualWageGrowthRate": 0.0337,
   "rollingYears": 10,
