@@ -56,10 +56,14 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git pull --rebase origin main
           git add src/data/colleges.json src/data/salaries.json src/data/rates.json
-          git diff --staged --quiet || git commit -m "data: annual data refresh $(date +%Y)"
-          git push
+          if git diff --staged --quiet; then
+            echo "No data changes to commit."
+          else
+            git commit -m "data: annual data refresh $(date +%Y)"
+            git pull --rebase --autostash origin main
+            git push
+          fi
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
