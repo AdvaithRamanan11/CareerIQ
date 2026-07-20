@@ -309,11 +309,18 @@ console.log(`📍  ${totalUrban} urban + ${totalRural} rural area series → ${a
 //   25-1000  Postsecondary Teachers          → $90,540  (BLS May 2024)
 //   25-1071  Health Specialties Teachers     → $117,190 (BLS May 2024)
 const BLS_STATIC_WAGES = {
-  '25-2031': 72030,   // Secondary School Teachers, Except Special and CTE
-  '25-2021': 68900,   // Elementary School Teachers, Except Special Education
-  '25-2050': 72140,   // Special Education Teachers (avg across sub-codes 25-2051–2058)
-  '25-1000': 90540,   // Postsecondary Teachers (all)
-  '25-1071': 117190,  // Health Specialties Teachers, Postsecondary
+  // ⚠ REPLACE each 0 below with the "Annual mean wage" from the BLS OES page noted.
+  //   These SOC codes are NOT served by the BLS time-series API, so they must be
+  //   entered by hand from the published OES national tables. Update each spring
+  //   when BLS releases new OES data (typically April/May).
+  //   The build will FAIL on purpose while any value is still 0 — this prevents
+  //   shipping placeholder salaries into the tool.
+  '25-2031': 0,   // Secondary School Teachers — bls.gov/oes/current/oes252031.htm
+  '25-2021': 0,   // Elementary School Teachers — bls.gov/oes/current/oes252021.htm
+  '25-2050': 0,   // Special Education Teachers — bls.gov/oes/current/oes252050.htm
+  '25-1000': 0,   // Postsecondary Teachers, all — bls.gov/oes/current/oes251000.htm
+  '25-1071': 0,   // Health Specialties Teachers, Postsecondary — bls.gov/oes/current/oes251071.htm
+  '11-9032': 0,   // Education Administrators, K–12 — bls.gov/oes/current/oes119032.htm
 }
 
 // ─── BLS API Fetcher ─────────────────────────────────────────────────────────
@@ -352,9 +359,15 @@ async function main() {
   // Seed with static BLS values for SOC codes the API doesn't serve
   // (teacher/education SOCs published in BLS HTML tables but not in timeseries API)
   const staticSocs = Object.keys(BLS_STATIC_WAGES)
+  const unfilled = staticSocs.filter(soc => !BLS_STATIC_WAGES[soc])
+  if (unfilled.length > 0) {
+    console.error(`\n❌  ${unfilled.length} static wage(s) still set to 0 — fill in real BLS OES values:`)
+    for (const soc of unfilled) console.error(`     ${soc} — see BLS_STATIC_WAGES comment for the source URL`)
+    process.exit(1)
+  }
   for (const [soc, wage] of Object.entries(BLS_STATIC_WAGES)) {
     wagesBySoc[soc] = wage
-    console.log(`     📋 ${soc}: $${wage.toLocaleString()} (BLS OES May 2024 static — not in API)`)
+    console.log(`     📋 ${soc}: $${wage.toLocaleString()} (BLS OES static — not in API)`)
   }
 
   // Split into batches of 50 (BLS API limit)
