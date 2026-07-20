@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -30,29 +32,24 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        working-directory: career-main
         run: npm install
 
       - name: Fetch colleges (College Scorecard API)
-        working-directory: career-main
         env:
           COLLEGE_SCORECARD_API_KEY: ${{ secrets.COLLEGE_SCORECARD_API_KEY }}
         run: node scripts/fetch-colleges.js
 
       - name: Fetch salaries (BLS OES API)
-        working-directory: career-main
         env:
           BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
         run: node scripts/fetch-salaries.js
 
       - name: Fetch wage growth rate (BLS ECI)
-        working-directory: career-main
         env:
           BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
         run: node scripts/fetch-rates.js
 
       - name: Build production bundle
-        working-directory: career-main
         run: npm run build
 
       - name: Commit updated data
@@ -60,14 +57,14 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git pull --rebase origin main
-          git add career-main/src/data/colleges.json career-main/src/data/salaries.json career-main/src/data/rates.json
+          git add src/data/colleges.json src/data/salaries.json src/data/rates.json
           git diff --staged --quiet || git commit -m "data: annual data refresh $(date +%Y)"
           git push
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: career-main/dist
+          path: dist
 
       - name: Deploy to GitHub Pages
         id: deployment
