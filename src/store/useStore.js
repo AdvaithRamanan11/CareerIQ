@@ -6,6 +6,7 @@ export const useStore = create((set) => ({
   major: null,
   job: null,
   area: "Suburban",
+  region: "National",   // "Where do you plan to work?" — default = national average
   experience: "Entry",
   incomeKey: "mid1",
 
@@ -19,6 +20,7 @@ export const useStore = create((set) => ({
   setMajor: (major) => set({ major, job: null }),
   setJob: (job) => set({ job }),
   setArea: (area) => set({ area }),
+  setRegion: (region) => set({ region }),
   setExperience: (experience) => set({ experience }),
   setIncomeKey: (incomeKey) => set({ incomeKey }),
   setActiveTool: (activeTool) => set({ activeTool }),
