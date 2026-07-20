@@ -347,6 +347,8 @@ function extractAnnualWage(seriesData) {
 async function main() {
   console.log('📡  Fetching wages from BLS OES API...')
 
+  const wagesBySoc = {}
+
   // Seed with static BLS values for SOC codes the API doesn't serve
   // (teacher/education SOCs published in BLS HTML tables but not in timeseries API)
   const staticSocs = Object.keys(BLS_STATIC_WAGES)
@@ -357,7 +359,6 @@ async function main() {
 
   // Split into batches of 50 (BLS API limit)
   const BATCH_SIZE = 50
-  const wagesBySoc = {}
 
   for (let i = 0; i < seriesIds.length; i += BATCH_SIZE) {
     const batch = seriesIds.slice(i, i + BATCH_SIZE)
