@@ -6,9 +6,10 @@ import { TIER_LABELS } from '../../data/salaries.js'
 import { INCOME_BRACKETS } from '../../data/colleges.js'
 import CollegeSearch from '../ui/CollegeSearch.jsx'
 import Select from '../ui/Select.jsx'
-import { AREA_MULTIPLIERS, EXPERIENCE_MULTIPLIERS } from '../../data/salaries.js'
+import { AREA_MULTIPLIERS, EXPERIENCE_MULTIPLIERS, REGIONS } from '../../data/salaries.js'
 
 const AREA_OPTIONS = Object.keys(AREA_MULTIPLIERS).map(a => ({ value: a, label: a }))
+const REGION_OPTIONS = REGIONS
 const EXP_OPTIONS  = Object.keys(EXPERIENCE_MULTIPLIERS).map(e => ({ value: e, label: e }))
 const INCOME_OPTIONS = INCOME_BRACKETS.map(b => ({ value: b.key, label: b.label }))
 
@@ -33,6 +34,7 @@ export default function ExportReport() {
     major, setMajor,
     job, setJob,
     area, setArea,
+    region, setRegion,
     experience, setExperience,
     incomeKey, setIncomeKey,
   } = useStore()
@@ -43,7 +45,7 @@ export default function ExportReport() {
   const majorOptions = MAJORS.map(m => ({ value: m.id, label: m.name }))
   const jobOptions   = majorObj?.jobs.map(j => ({ value: j.id, label: j.title })) ?? []
 
-  const salary = useMemo(() => calculateSalary({ college, job: jobObj, area, experience }), [college, jobObj, area, experience])
+  const salary = useMemo(() => calculateSalary({ college, job: jobObj, area, experience, region }), [college, jobObj, area, experience, region])
   const { monthly, weekly, hourly } = salaryBreakdown(salary)
 
   const loan = useMemo(() => calculateLoan({ college, incomeKey }), [college, incomeKey])
@@ -78,6 +80,7 @@ export default function ExportReport() {
         <Select label="Family Annual Income" value={incomeKey} onChange={setIncomeKey} options={INCOME_OPTIONS} placeholder="Select income bracket" />
         <Select label="Major" value={major} onChange={v => setMajor(v)} options={majorOptions} placeholder="Select a major" />
         {major && <Select label="Job Title" value={job} onChange={setJob} options={jobOptions} placeholder="Select a job title" />}
+        <Select label="Where do you plan to work?" value={region} onChange={setRegion} options={REGION_OPTIONS} />
         <div className="grid grid-cols-2 gap-4">
           <Select label="Area of Work" value={area} onChange={setArea} options={AREA_OPTIONS} />
           <Select label="Experience" value={experience} onChange={setExperience} options={EXP_OPTIONS} />
@@ -111,6 +114,7 @@ export default function ExportReport() {
             <ProfileRow label="Major" value={majorObj?.name ?? '—'} />
             <ProfileRow label="Job Title" value={jobObj?.title ?? '—'} />
             <ProfileRow label="Area of Work" value={area} />
+            <ProfileRow label="Region" value={region === 'National' ? 'National average' : region} />
             <ProfileRow label="Experience Level" value={experience} />
           </div>
         </div>
@@ -205,7 +209,7 @@ export default function ExportReport() {
           <p className="text-xs text-gray-500 mt-1 leading-relaxed">
             All figures are estimates based on publicly available U.S. market data. Tax includes 2024 federal income tax brackets, FICA (Social Security 6.2% + Medicare 1.45%), and a national average state income tax — actual take-home varies by state. Loan models 10-year standard repayment; income-driven repayment (IDR) plans may lower monthly payments. For educational purposes only. Not financial or career advice.
           </p>
-          <p className="text-xs text-gray-500 mt-2">CareerIQ · CC BY 4.0 · Advaith Ramanan · advaithramanan11.github.io/career</p>
+          <p className="text-xs text-gray-500 mt-2">CareerIQ · CC BY 4.0 · Advaith Ramanan · advaithramanan11.github.io/CareerIQ</p>
         </div>
       </div>
 
