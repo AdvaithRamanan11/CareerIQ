@@ -13,8 +13,8 @@
  *   Registered key: 500 requests/day (unregistered: 25/day)
  *
  * BLS OES series ID format for national annual mean wage:
- *   OEUN000000{SOC_7digit}08
- *   e.g. Software Developers (15-1252) → OEUN000000000000015125208
+ *   OEUN000000{SOC_7digit}04
+ *   e.g. Software Developers (15-1252) → OEUN000000000000015125204
  *
  * Data source: BLS Occupational Employment and Wage Statistics (OES)
  *   Published annually each April/May for the prior May reference period.
@@ -115,7 +115,7 @@ const AREA_PROXY_SOCS = [
 // Full OES series: OEUM000000{7digits}08
 //   OEUM = OES, U = U.S. national, M = mean wage
 //   000000 = national (no metro)
-//   08 = annual mean wage datatype
+//   04 = annual mean wage datatype
 
 const JOB_SOC_MAP = [
   // ── Computer Science ──────────────────────────────────────────────────────
@@ -261,8 +261,9 @@ const PROXY_PREMIUMS = {
 }
 
 // ─── Build BLS Series IDs ────────────────────────────────────────────────────
-// OES national annual mean wage series: OEUN000000{SOC_7digit}08
-// NOTE: We use datatype 08 (annual mean wage) rather than 03 (annual median wage).
+// OES national annual mean wage series: OEUN000000{SOC_7digit}04
+// NOTE: We use datatype 04 (annual mean wage). Datatype 08 is HOURLY median
+// wage — using it returns ~$65 for a software developer instead of ~$144k.
 // BLS suppresses median wages for many occupations with smaller sample sizes
 // (notably many education and some healthcare SOC codes), while mean wages are
 // published for all occupations. Mean and median are within ~5% for most jobs.
@@ -275,15 +276,15 @@ function socToSeriesId(soc) {
   //   000000   = All industries, 6 digits (6)
   //   151252   = SOC code digits without dash, always 6 digits (6)
   //   08       = Datatype 08 = Annual mean wage (2)
-  // Example: Software Developers 15-1252 → OEUN000000000000015125208
+  // Example: Software Developers 15-1252 → OEUN000000000000015125204
   const digits = soc.replace('-', '')   // '15-1252' → '151252' (always 6 chars)
-  return `OEUN0000000000000${digits}08`
+  return `OEUN0000000000000${digits}04`
 }
 
 function metroSeriesId(metroCode, soc) {
   // Metro area annual mean wage: OE+U+M + 7-digit-metro + 000000(industry) + 6-digit-soc + 08
   const digits = soc.replace('-', '')
-  return `OEUM${metroCode}000000${digits}08`
+  return `OEUM${metroCode}000000${digits}04`
 }
 
 function ruralSeriesId(areaCode, soc) {
@@ -291,7 +292,7 @@ function ruralSeriesId(areaCode, soc) {
   // Area code = state FIPS (2-digit, zero-padded to 4) + '001' = 7 digits
   // e.g. Mississippi (FIPS 28) nonmetro → 0028001
   const digits = soc.replace('-', '')
-  return `OEUM${areaCode}000000${digits}08`
+  return `OEUM${areaCode}000000${digits}04`
 }
 
 // Deduplicate — multiple jobs share the same SOC, only fetch each series once
@@ -364,7 +365,7 @@ async function fetchBLSBatch(series) {
 }
 
 function extractAnnualWage(seriesData) {
-  // BLS returns the value in dollars (annual mean wage for datatype 08)
+  // BLS returns the value in dollars (annual mean wage for datatype 04)
   const latest = seriesData.data?.[0]
   if (!latest || latest.value === '-') return null
   return Math.round(parseFloat(latest.value))
