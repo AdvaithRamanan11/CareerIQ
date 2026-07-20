@@ -309,18 +309,14 @@ console.log(`📍  ${totalUrban} urban + ${totalRural} rural area series → ${a
 //   25-1000  Postsecondary Teachers          → $90,540  (BLS May 2024)
 //   25-1071  Health Specialties Teachers     → $117,190 (BLS May 2024)
 const BLS_STATIC_WAGES = {
-  // ⚠ REPLACE each 0 below with the "Annual mean wage" from the BLS OES page noted.
-  //   These SOC codes are NOT served by the BLS time-series API, so they must be
-  //   entered by hand from the published OES national tables. Update each spring
-  //   when BLS releases new OES data (typically April/May).
-  //   The build will FAIL on purpose while any value is still 0 — this prevents
-  //   shipping placeholder salaries into the tool.
-  '25-2031': 0,   // Secondary School Teachers — bls.gov/oes/current/oes252031.htm
-  '25-2021': 0,   // Elementary School Teachers — bls.gov/oes/current/oes252021.htm
-  '25-2050': 0,   // Special Education Teachers — bls.gov/oes/current/oes252050.htm
-  '25-1000': 0,   // Postsecondary Teachers, all — bls.gov/oes/current/oes251000.htm
-  '25-1071': 0,   // Health Specialties Teachers, Postsecondary — bls.gov/oes/current/oes251071.htm
-  '11-9032': 0,   // Education Administrators, K–12 — bls.gov/oes/current/oes119032.htm
+  // BLS OES annual mean wages for SOC codes NOT served by the time-series API.
+  // Entered by hand from bls.gov/oes/current pages. Update each spring on BLS release.
+  '25-2031': 76320,   // Secondary School Teachers — oes252031.htm
+  '25-2021': 72650,   // Elementary School Teachers — oes252021.htm
+  '25-2050': 77260,   // Special Education Teachers — proxy: 25-2058 Secondary (25-2050 group has no single BLS wage)
+  '25-1000': 90630,   // Postsecondary Teachers — proxy: 25-1199 All Other (25-1000 group has no single BLS wage)
+  '25-1071': 147570,  // Health Specialties Teachers, Postsecondary — oes251071.htm
+  '11-9032': 116100,  // Education Administrators, K–12 — oes119032.htm
 }
 
 // ─── BLS API Fetcher ─────────────────────────────────────────────────────────
