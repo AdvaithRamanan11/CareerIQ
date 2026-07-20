@@ -2,12 +2,34 @@
   "_meta": {
     "source": "BLS Occupational Employment and Wage Statistics (OES)",
     "apiEndpoint": "https://api.bls.gov/publicAPI/v2/timeseries/data/",
-    "fetchedAt": "2026-07-20T17:18:20.760Z",
+    "fetchedAt": "2026-07-20T17:57:59.306Z",
     "note": "Annual mean wages (datatype 08), area multipliers, and proxy premiums. All derived from BLS OES data. Mean wages are used instead of median (03) because BLS suppresses median for lower-sample occupations (e.g. many education SOC codes).",
     "areaMultipliers": {
-      "Urban": 1.15,
+      "Urban": 1.106,
       "Suburban": 1,
       "Rural": 0.84
+    },
+    "regionAreaMultipliers": {
+      "Northeast": {
+        "Urban": 1.156,
+        "Suburban": 1.028,
+        "Rural": 0.9
+      },
+      "Midwest": {
+        "Urban": 1.008,
+        "Suburban": 0.904,
+        "Rural": 0.8
+      },
+      "South": {
+        "Urban": 1.037,
+        "Suburban": 0.914,
+        "Rural": 0.79
+      },
+      "West": {
+        "Urban": 1.228,
+        "Suburban": 1.059,
+        "Rural": 0.89
+      }
     }
   },
   "jobs": [
