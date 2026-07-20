@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useStore } from '../../store/useStore.js'
-import { MAJORS, AREA_MULTIPLIERS, EXPERIENCE_MULTIPLIERS } from '../../data/salaries.js'
+import { MAJORS, AREA_MULTIPLIERS, EXPERIENCE_MULTIPLIERS, REGIONS } from '../../data/salaries.js'
 import { compareSchools, formatCurrency, formatPct, ANNUAL_WAGE_GROWTH } from '../../lib/calculations.js'
 import { useState } from 'react'
 import { COLLEGES } from '../../data/colleges.js'
@@ -8,10 +8,11 @@ import CollegeSearch from '../ui/CollegeSearch.jsx'
 import Select from '../ui/Select.jsx'
 
 const AREA_OPTIONS = Object.keys(AREA_MULTIPLIERS).map(a => ({ value: a, label: a }))
+const REGION_OPTIONS = REGIONS
 const EXP_OPTIONS  = Object.keys(EXPERIENCE_MULTIPLIERS).map(e => ({ value: e, label: e }))
 
 export default function CompareSchools() {
-  const { major, setMajor, job, setJob, area, setArea, experience, setExperience } = useStore()
+  const { major, setMajor, job, setJob, area, setArea, region, setRegion, experience, setExperience } = useStore()
   const [schoolA, setSchoolA] = useState(null)
   const [schoolB, setSchoolB] = useState(null)
 
@@ -22,8 +23,8 @@ export default function CompareSchools() {
   const jobOptions   = majorObj?.jobs.map(j => ({ value: j.id, label: j.title })) ?? []
 
   const result = useMemo(() =>
-    compareSchools({ collegeA: schoolA, collegeB: schoolB, job: jobObj, area, experience }),
-    [schoolA, schoolB, jobObj, area, experience]
+    compareSchools({ collegeA: schoolA, collegeB: schoolB, job: jobObj, area, experience, region }),
+    [schoolA, schoolB, jobObj, area, experience, region]
   )
 
   const winner = result ? (result.salaryA >= result.salaryB ? 'A' : 'B') : null
@@ -39,6 +40,7 @@ export default function CompareSchools() {
       <div className="grid gap-4">
         <Select label="Major" value={major} onChange={v => { setMajor(v) }} options={majorOptions} placeholder="Select a major" />
         {major && <Select label="Job Title" value={job} onChange={setJob} options={jobOptions} placeholder="Select a job title" />}
+        <Select label="Where do you plan to work?" value={region} onChange={setRegion} options={REGION_OPTIONS} />
         <div className="grid grid-cols-2 gap-4">
           <Select label="Area of Work" value={area} onChange={setArea} options={AREA_OPTIONS} />
           <Select label="Experience" value={experience} onChange={setExperience} options={EXP_OPTIONS} />
