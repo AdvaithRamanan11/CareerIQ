@@ -43,30 +43,54 @@ const BLS_API = 'https://api.bls.gov/publicAPI/v2/timeseries/data/'
 //   BLS publishes nonmetro data per state, not as a single national aggregate.
 //   State nonmetro area code format: state FIPS (2-digit) + '001' → 7 digits total
 //   e.g. Mississippi nonmetro = state FIPS 28 → 0028001
+// Each metro is tagged with its U.S. Census region (Northeast, Midwest, South, West)
+// so we can compute region-specific urban multipliers as well as a national one.
+// Coverage is balanced so every region has multiple metros.
 const URBAN_METROS = {
-  'New York-Newark':   '0035620',
-  'Los Angeles':       '0031080',
-  'Chicago':           '0016980',
-  'San Francisco':     '0041860',
-  'Washington DC':     '0047900',
-  'Boston':            '0014460',
-  'Seattle':           '0042660',
-  'Dallas':            '0019100',
-  'Houston':           '0026420',
-  'Miami':             '0033100',
+  'New York-Newark':   { code: '0035620', region: 'Northeast' },
+  'Boston':            { code: '0014460', region: 'Northeast' },
+  'Philadelphia':      { code: '0037980', region: 'Northeast' },
+  'Chicago':           { code: '0016980', region: 'Midwest'   },
+  'Minneapolis':       { code: '0033460', region: 'Midwest'   },
+  'Detroit':           { code: '0019820', region: 'Midwest'   },
+  'Washington DC':     { code: '0047900', region: 'South'     },
+  'Dallas':            { code: '0019100', region: 'South'     },
+  'Houston':           { code: '0026420', region: 'South'     },
+  'Miami':             { code: '0033100', region: 'South'     },
+  'Atlanta':           { code: '0012060', region: 'South'     },
+  'Los Angeles':       { code: '0031080', region: 'West'      },
+  'San Francisco':     { code: '0041860', region: 'West'      },
+  'Seattle':           { code: '0042660', region: 'West'      },
+  'Denver':            { code: '0019740', region: 'West'      },
 }
 
 // Rural proxies: predominantly rural state nonmetro areas (BLS area code = state FIPS + '001')
+// Also tagged by Census region for region-specific rural multipliers.
 const RURAL_NONMETROS = {
-  'Mississippi nonmetro':    '0028001',
-  'Arkansas nonmetro':       '0005001',
-  'West Virginia nonmetro':  '0054001',
-  'Iowa nonmetro':           '0019001',
-  'Montana nonmetro':        '0030001',
-  'Idaho nonmetro':          '0016001',
-  'South Dakota nonmetro':   '0046001',
-  'Wyoming nonmetro':        '0056001',
+  'Maine nonmetro':          { code: '0023001', region: 'Northeast' },
+  'Vermont nonmetro':        { code: '0050001', region: 'Northeast' },
+  'Pennsylvania nonmetro':   { code: '0042001', region: 'Northeast' },
+  'Iowa nonmetro':           { code: '0019001', region: 'Midwest'   },
+  'South Dakota nonmetro':   { code: '0046001', region: 'Midwest'   },
+  'Kansas nonmetro':         { code: '0020001', region: 'Midwest'   },
+  'Mississippi nonmetro':    { code: '0028001', region: 'South'     },
+  'Arkansas nonmetro':       { code: '0005001', region: 'South'     },
+  'West Virginia nonmetro':  { code: '0054001', region: 'South'     },
+  'Montana nonmetro':        { code: '0030001', region: 'West'      },
+  'Idaho nonmetro':          { code: '0016001', region: 'West'      },
+  'Wyoming nonmetro':        { code: '0056001', region: 'West'      },
 }
+
+// Fallback region × urbanicity grid — used only if BLS regional data is too
+// sparse to compute a given cell. Mirrors src/data/salaries.js. Estimates:
+// Northeast/West high, South/Midwest low; columns average to the national anchors.
+const REGION_AREA_FALLBACK = {
+  Northeast: { Urban: 1.24, Suburban: 1.09, Rural: 0.90 },
+  West:      { Urban: 1.21, Suburban: 1.07, Rural: 0.89 },
+  Midwest:   { Urban: 1.06, Suburban: 0.95, Rural: 0.80 },
+  South:     { Urban: 1.04, Suburban: 0.93, Rural: 0.79 },
+}
+const CENSUS_REGIONS = ['Northeast', 'Midwest', 'South', 'West']
 
 // Diverse cross-sector SOCs for stable area ratio computation
 // Chosen to span tech, healthcare, education, law, trades, services
@@ -277,11 +301,11 @@ const seriesIds  = uniqueSocs.map(soc => ({ soc, seriesId: socToSeriesId(soc) })
 // Build area proxy series — metro + rural nonmetro for representative SOCs
 const areaSeriesIds = []
 for (const soc of AREA_PROXY_SOCS) {
-  for (const [metroName, metroCode] of Object.entries(URBAN_METROS)) {
-    areaSeriesIds.push({ type: 'urban', metroName, soc, seriesId: metroSeriesId(metroCode, soc) })
+  for (const [metroName, info] of Object.entries(URBAN_METROS)) {
+    areaSeriesIds.push({ type: 'urban', metroName, region: info.region, soc, seriesId: metroSeriesId(info.code, soc) })
   }
-  for (const [areaName, areaCode] of Object.entries(RURAL_NONMETROS)) {
-    areaSeriesIds.push({ type: 'rural', areaName, soc, seriesId: ruralSeriesId(areaCode, soc) })
+  for (const [areaName, info] of Object.entries(RURAL_NONMETROS)) {
+    areaSeriesIds.push({ type: 'rural', areaName, region: info.region, soc, seriesId: ruralSeriesId(info.code, soc) })
   }
 }
 
@@ -437,7 +461,10 @@ async function main() {
 
   // ─── Fetch area multipliers ────────────────────────────────────────────────
   console.log('\n📍  Fetching area wage data from BLS OES...')
+  // National buckets (backward compat) plus per-region buckets.
   const areaWages = { urban: {}, rural: {} }
+  const regionWages = {}
+  for (const r of CENSUS_REGIONS) regionWages[r] = { urban: {}, rural: {} }
 
   for (let i = 0; i < areaSeriesIds.length; i += BATCH_SIZE) {
     const batch = areaSeriesIds.slice(i, i + BATCH_SIZE)
@@ -459,13 +486,14 @@ async function main() {
       const wage = extractAnnualWage(series)
       if (!wage) continue
 
-      if (match.type === 'urban') {
-        if (!areaWages.urban[match.soc]) areaWages.urban[match.soc] = []
-        areaWages.urban[match.soc].push(wage)
-      } else {
-        // Collect all rural nonmetro wages per SOC, average them
-        if (!areaWages.rural[match.soc]) areaWages.rural[match.soc] = []
-        areaWages.rural[match.soc].push(wage)
+      const tier = match.type   // 'urban' | 'rural'
+      // National bucket
+      if (!areaWages[tier][match.soc]) areaWages[tier][match.soc] = []
+      areaWages[tier][match.soc].push(wage)
+      // Region bucket
+      if (match.region && regionWages[match.region]) {
+        if (!regionWages[match.region][tier][match.soc]) regionWages[match.region][tier][match.soc] = []
+        regionWages[match.region][tier][match.soc].push(wage)
       }
     }
 
@@ -497,9 +525,10 @@ async function main() {
   }
 
   const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null
+  const round3 = n => Math.round(n * 1000) / 1000
 
-  const urbanMultiplier  = urbanRatios.length  ? Math.round(avg(urbanRatios)  * 1000) / 1000 : 1.12
-  const ruralMultiplier  = ruralRatios.length  ? Math.round(avg(ruralRatios)  * 1000) / 1000 : 0.84
+  const urbanMultiplier  = urbanRatios.length  ? round3(avg(urbanRatios))  : 1.12
+  const ruralMultiplier  = ruralRatios.length  ? round3(avg(ruralRatios))  : 0.84
 
   const areaMultipliers = {
     Urban:    urbanMultiplier,
@@ -516,6 +545,33 @@ async function main() {
   console.log(`     Suburban: ${areaMultipliers.Suburban}x  (national baseline)`)
   console.log(`     Rural:    ${areaMultipliers.Rural}x  (avg of ${ruralRatios.length} SOC ratios across ${Object.keys(RURAL_NONMETROS).length} rural nonmetro areas)`)
 
+  // ─── Region × urbanicity grid ──────────────────────────────────────────────
+  // For each Census region, average the metro (urban) and nonmetro (rural) BLS
+  // wage ratios across the proxy SOCs. Suburban is interpolated as the midpoint
+  // of that region's urban and rural (BLS has no standalone suburban series).
+  // Any cell without enough BLS data falls back to REGION_AREA_FALLBACK.
+  const regionAreaMultipliers = {}
+  for (const region of CENSUS_REGIONS) {
+    const uRatios = []
+    const rRatios = []
+    for (const soc of AREA_PROXY_SOCS) {
+      const nat = wagesBySoc[soc]
+      if (!nat) continue
+      const uw = regionWages[region].urban[soc]
+      if (uw?.length > 0) uRatios.push((uw.reduce((a, b) => a + b, 0) / uw.length) / nat)
+      const rw = regionWages[region].rural[soc]
+      if (rw?.length > 0) rRatios.push((rw.reduce((a, b) => a + b, 0) / rw.length) / nat)
+    }
+    const fb = REGION_AREA_FALLBACK[region]
+    const urban = uRatios.length ? round3(avg(uRatios)) : fb.Urban
+    const rural = rRatios.length ? round3(avg(rRatios)) : fb.Rural
+    // Suburban = midpoint of urban and rural for this region (documented interpolation)
+    const suburban = round3((urban + rural) / 2)
+    regionAreaMultipliers[region] = { Urban: urban, Suburban: suburban, Rural: rural }
+    const src = (uRatios.length && rRatios.length) ? 'BLS' : (uRatios.length || rRatios.length) ? 'BLS+fallback' : 'fallback'
+    console.log(`     ${region}: Urban ${urban}x / Suburban ${suburban}x / Rural ${rural}x  [${src}]`)
+  }
+
   // Write the output
   const out = {
     _meta: {
@@ -524,6 +580,7 @@ async function main() {
       fetchedAt:   new Date().toISOString(),
       note:        'Annual mean wages (datatype 08), area multipliers, and proxy premiums. All derived from BLS OES data. Mean wages are used instead of median (03) because BLS suppresses median for lower-sample occupations (e.g. many education SOC codes).',
       areaMultipliers,
+      regionAreaMultipliers,
     },
     jobs,
   }
