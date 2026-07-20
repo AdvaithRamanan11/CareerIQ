@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useStore } from '../../store/useStore.js'
-import { MAJORS } from '../../data/salaries.js'
+import { MAJORS, REGIONS } from '../../data/salaries.js'
 import { generateScenarios, formatCurrency, formatPct } from '../../lib/calculations.js'
 import CollegeSearch from '../ui/CollegeSearch.jsx'
 import Select from '../ui/Select.jsx'
@@ -9,9 +9,10 @@ const EXP_ORDER = ['Entry', 'Early Career', 'Experienced', 'Veteran']
 const AREA_ORDER = ['Urban', 'Suburban', 'Rural']
 
 const AREA_ICONS = { Urban: '🏙', Suburban: '🏘', Rural: '🌾' }
+const REGION_OPTIONS = REGIONS
 
 export default function WhatIfScenarios() {
-  const { college, setCollege, major, setMajor, job, setJob } = useStore()
+  const { college, setCollege, major, setMajor, job, setJob, region, setRegion } = useStore()
 
   const majorObj = MAJORS.find(m => m.id === major)
   const jobObj   = majorObj?.jobs.find(j => j.id === job)
@@ -19,8 +20,8 @@ export default function WhatIfScenarios() {
   const jobOptions   = majorObj?.jobs.map(j => ({ value: j.id, label: j.title })) ?? []
 
   const scenarios = useMemo(() =>
-    generateScenarios({ college, job: jobObj }),
-    [college, jobObj]
+    generateScenarios({ college, job: jobObj, region }),
+    [college, jobObj, region]
   )
 
   // Group by experience for the grid
@@ -42,6 +43,7 @@ export default function WhatIfScenarios() {
         <CollegeSearch value={college} onChange={setCollege} />
         <Select label="Major" value={major} onChange={v => setMajor(v)} options={majorOptions} placeholder="Select a major" />
         {major && <Select label="Job Title" value={job} onChange={setJob} options={jobOptions} placeholder="Select a job title" />}
+        <Select label="Where do you plan to work?" value={region} onChange={setRegion} options={REGION_OPTIONS} />
       </div>
 
       {hasResults ? (
