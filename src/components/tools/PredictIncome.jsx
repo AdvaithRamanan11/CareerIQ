@@ -1,21 +1,22 @@
 import { useMemo } from "react";
 import { useStore } from "../../store/useStore.js";
-import { MAJORS, AREA_MULTIPLIERS, EXPERIENCE_MULTIPLIERS } from "../../data/salaries.js";
+import { MAJORS, AREA_MULTIPLIERS, EXPERIENCE_MULTIPLIERS, REGIONS } from "../../data/salaries.js";
 import { calculateSalary, salaryBreakdown, formatCurrency } from "../../lib/calculations.js";
 import CollegeSearch from "../ui/CollegeSearch.jsx";
 import Select from "../ui/Select.jsx";
 import SalaryCard from "../ui/SalaryCard.jsx";
 
 const AREA_OPTIONS = Object.keys(AREA_MULTIPLIERS).map((a) => ({ value: a, label: a }));
+const REGION_OPTIONS = REGIONS;
 const EXPERIENCE_OPTIONS = Object.keys(EXPERIENCE_MULTIPLIERS).map((e) => ({ value: e, label: e }));
 
 export default function PredictIncome() {
-  const { college, setCollege, major, setMajor, job, setJob, area, setArea, experience, setExperience } = useStore();
+  const { college, setCollege, major, setMajor, job, setJob, area, setArea, region, setRegion, experience, setExperience } = useStore();
 
   const majorObj = MAJORS.find((m) => m.id === major);
   const jobObj = majorObj?.jobs.find((j) => j.id === job);
 
-  const salary = useMemo(() => calculateSalary({ college, job: jobObj, area, experience }), [college, jobObj, area, experience]);
+  const salary = useMemo(() => calculateSalary({ college, job: jobObj, area, experience, region }), [college, jobObj, area, experience, region]);
   const { monthly, weekly, hourly } = salaryBreakdown(salary);
 
   const majorOptions = MAJORS.map((m) => ({ value: m.id, label: m.name }));
@@ -62,6 +63,13 @@ export default function PredictIncome() {
             placeholder="Select a job title"
           />
         )}
+
+        <Select
+          label="Where do you plan to work?"
+          value={region}
+          onChange={setRegion}
+          options={REGION_OPTIONS}
+        />
 
         <div className="grid grid-cols-2 gap-4">
           <Select
@@ -132,6 +140,16 @@ export default function PredictIncome() {
               multipliers are applied based on BLS and BEA regional wage data. This adjusts for the fact that
               the same job title pays differently depending on local labor market conditions and cost of living —
               a software engineer in rural Montana earns significantly less than one in San Francisco.
+              When you also choose a <span className="font-semibold">region</span> (Northeast, Midwest, South, or West),
+              this adjustment becomes region-specific, since the urban/suburban/rural pay gap itself varies by part
+              of the country. Leaving the region on <span className="font-semibold">National average</span> uses the
+              nationwide figures.
+            </p>
+            <p className="text-gray-400">
+              <span className="font-semibold text-gray-500">Note on region &amp; school:</span> a college's earnings
+              multiplier (Step 2) already reflects some geography, because it captures where that school's graduates
+              tend to work. The region adjustment is applied on top of it, so a figure for a specific school-and-region
+              combination may run slightly high. Treat these estimates as directional, not exact.
             </p>
             <p>
               <span className="font-semibold">Step 4 — Experience adjustment:</span> Entry, Early Career,
