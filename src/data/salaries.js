@@ -208,6 +208,34 @@ export const AREA_MULTIPLIERS = salariesData._meta?.areaMultipliers ?? {
   Rural:    0.84,
 }
 
+// Region list for the "Where do you plan to work?" selector.
+// "National" is the default sentinel — it maps to no grid entry, so the
+// national AREA_MULTIPLIERS above are used (i.e. pre-region behavior).
+export const REGIONS = [
+  { value: 'National',  label: 'National average' },
+  { value: 'Northeast', label: 'Northeast' },
+  { value: 'Midwest',   label: 'Midwest' },
+  { value: 'South',     label: 'South' },
+  { value: 'West',      label: 'West' },
+]
+
+// Region × urbanicity wage multipliers.
+// Computed at build time by fetch-salaries.js from BLS OES metro/nonmetro
+// wage data, grouped into the 4 U.S. Census regions. The fallback grid below
+// is used only if BLS regional data is unavailable at build time.
+//
+// Fallback values are ESTIMATES (not yet BLS-derived): Northeast/West run high,
+// South/Midwest run low, and each urbanicity column averages back to the
+// national AREA_MULTIPLIERS as a sanity check (Urban ~1.13, Suburban ~1.00,
+// Rural ~0.84). Suburban is interpolated between Urban and Rural because BLS
+// publishes no standalone suburban series.
+export const REGION_AREA_MULTIPLIERS = salariesData._meta?.regionAreaMultipliers ?? {
+  Northeast: { Urban: 1.24, Suburban: 1.09, Rural: 0.90 },
+  West:      { Urban: 1.21, Suburban: 1.07, Rural: 0.89 },
+  Midwest:   { Urban: 1.06, Suburban: 0.95, Rural: 0.80 },
+  South:     { Urban: 1.04, Suburban: 0.93, Rural: 0.79 },
+}
+
 // Experience multipliers — calibrated so BLS mean wage = Experienced (1.0 baseline).
 // BLS OES mean wage reflects the average worker, which skews toward ~7yrs experience.
 // Entry-level salaries are typically 60-65% of the BLS mean (NACE, Glassdoor, Levels.fyi).
