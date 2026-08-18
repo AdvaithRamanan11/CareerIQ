@@ -12,6 +12,13 @@ permissions:
   pages: write
   id-token: write
 
+# Queue runs instead of letting back-to-back pushes race each other.
+# Racing runs both commit refreshed data JSONs and collide on the
+# timestamp lines, causing rebase conflicts in the Commit step.
+concurrency:
+  group: pages-deploy
+  cancel-in-progress: false
+
 jobs:
   build-and-deploy:
     name: Fetch, build & deploy to GitHub Pages
@@ -61,7 +68,7 @@ jobs:
             echo "No data changes to commit."
           else
             git commit -m "data: annual data refresh $(date +%Y)"
-            git pull --rebase --autostash origin main
+            git pull --rebase --autostash -X theirs origin main
             git push
           fi
 
