@@ -46,6 +46,28 @@ export default function PredictIncome() {
       <div className="grid gap-4">
         <CollegeSearch value={college} onChange={setCollege} />
 
+        <details className="text-xs text-gray-500 -mt-2">
+          <summary className="cursor-pointer font-medium text-gray-500 hover:text-gray-700 transition-colors">
+            ℹ What do the college tags (Elite, Selective…) mean?
+          </summary>
+          <div className="mt-2 bg-gray-50 rounded-xl p-3 space-y-1.5 leading-relaxed">
+            <p>
+              Each college's tag describes its <span className="font-semibold">admission selectivity</span>,
+              based on the school's reported admission rate in the U.S. Department of Education's College Scorecard:
+            </p>
+            <p><span className="font-semibold text-gray-700">Elite</span> — admits fewer than 15% of applicants.</p>
+            <p><span className="font-semibold text-gray-700">Selective</span> — admits 15–40% of applicants.</p>
+            <p><span className="font-semibold text-gray-700">Above Average</span> — admits 40–70% of applicants.</p>
+            <p><span className="font-semibold text-gray-700">Average</span> — admits more than 70% of applicants, including open-admission schools.</p>
+            <p className="text-gray-400 pt-1">
+              These tags describe how hard a school is to get into — <span className="font-semibold">not</span> its
+              quality, value, or graduate outcomes. A less selective school can be the better financial choice;
+              that's exactly what this tool helps you evaluate. Schools that don't report an admission rate
+              are shown as "Above Average" by default.
+            </p>
+          </div>
+        </details>
+
         <Select
           label="Major"
           value={major}
